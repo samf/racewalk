@@ -1,12 +1,10 @@
 package racewalk
 
 import (
+	"fmt"
 	"io/ioutil"
-	"os"
 	"path/filepath"
-	"sync"
-
-	"golang.org/x/sys/unix"
+	"sync/atomic"
 )
 
 // WalkHandler is a function that is called for every directory visited by Walk.
@@ -28,7 +26,7 @@ var NumWorkers = 7
 // Walk calls the 'handle' function for every directory under top. The handle
 // function may be called from a go routine.
 func Walk(top string, handler WalkHandler) error {
-	var wg sync.WaitGroup
+	var pending int32
 
 	// read the top directory
 	first, err := dirToWorkItem(top)
@@ -37,40 +35,45 @@ func Walk(top string, handler WalkHandler) error {
 	}
 
 	// we now have one workItem
-	wg.Add(1)
+	pending = 1
 	work := make(chan *workItem, 1)
+	defer close(work)
 	work <- first
 
 	errs := make(chan error)
+	defer close(errs)
 	done := make(chan struct{})
 
 	for i := 0; i < NumWorkers; i++ {
-		go walker(work, errs, done, handler, &wg)
+		go walker(work, errs, done, handler, &pending)
 	}
-
-	go func() {
-		wg.Wait()
-		close(done)
-	}()
 
 	select {
 	case err := <-errs:
-		close(done)
 		return err
 	case <-done:
 	}
+
+	if len(work) > 1 {
+		return fmt.Errorf("unfinished work remaining: %v items", len(work))
+	}
+
 	return nil
 }
 
-func walker(work chan *workItem, errs chan<- error, done <-chan struct{},
-	handler WalkHandler, wg *sync.WaitGroup) {
+func walker(work chan *workItem, errs chan<- error, done chan struct{},
+	handler WalkHandler, pending *int32) {
 	for {
 		select {
 		case wi := <-work:
+			if wi == nil {
+				continue
+			}
+
 			dirs, err := handler(wi.top, wi.dirs, wi.others)
 			if err != nil {
 				errs <- err
-				return // return without wg.Done() because we're giving up
+				return
 			}
 
 			for _, dir := range dirs {
@@ -81,10 +84,13 @@ func walker(work chan *workItem, errs chan<- error, done <-chan struct{},
 					return
 				}
 				work <- wi
-				wg.Add(1)
+				atomic.AddInt32(pending, 1)
 			}
 
-			wg.Done()
+			if atomic.AddInt32(pending, -1) == 0 {
+				close(done)
+				return
+			}
 		case <-done:
 			return
 		}
@@ -102,10 +108,7 @@ func dirToWorkItem(dir string) (*workItem, error) {
 	}
 
 	for _, finfo := range finfos {
-		fnode, err := complete(dir, finfo)
-		if err != nil {
-			return nil, err
-		}
+		fnode := complete(dir, finfo)
 
 		if fnode.IsDir() {
 			workItem.dirs = append(workItem.dirs, *fnode)
@@ -115,18 +118,4 @@ func dirToWorkItem(dir string) (*workItem, error) {
 	}
 
 	return workItem, nil
-}
-
-// complete takes a string and a FileInfo, and returns a FileNode. The string,
-// 'top', is a path to the directory containing the FileInfo.
-func complete(top string, finfo os.FileInfo) (*FileNode, error) {
-	fileNode := FileNode{
-		FileInfo: finfo,
-	}
-	err := unix.Lstat(filepath.Join(top, finfo.Name()), &fileNode.Stat_t)
-	if err != nil {
-		return nil, err
-	}
-
-	return &fileNode, err
 }
