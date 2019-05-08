@@ -22,13 +22,19 @@ type workItem struct {
 	others []FileNode
 }
 
-// NumWorkers is the number of goroutines walking your tree
-var NumWorkers = 7
-
 // Walk calls the 'handle' function for every directory under top. The handle
 // function may be called from a go routine.
-func Walk(top string, handler WalkHandler) error {
+func Walk(top string, opt *Options, handler WalkHandler) error {
 	var pending int32
+
+	// check/initialize options
+	if opt == nil {
+		opt = new(Options)
+	}
+	err := opt.valid()
+	if err != nil {
+		return err
+	}
 
 	// read the top directory
 	first, err := dirToWorkItem(top)
@@ -44,22 +50,24 @@ func Walk(top string, handler WalkHandler) error {
 	errs := make(chan error)
 	done := make(chan struct{})
 
-	for i := 0; i < NumWorkers; i++ {
+	for i := 0; i < opt.NumWorkers; i++ {
 		go walker(work, errs, done, handler, &pending)
 	}
 
-	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs)
-	go func() {
-		select {
-		case s := <-sigs:
-			fmt.Printf("Signal: %v\n", s)
-			fmt.Printf("Pending: %v\n", atomic.LoadInt32(&pending))
-			fmt.Printf("Work channel length: %v", len(work))
-		case <-done:
-		}
-		signal.Stop(sigs)
-	}()
+	if opt.Debug {
+		sigs := make(chan os.Signal, 1)
+		signal.Notify(sigs)
+		go func() {
+			select {
+			case s := <-sigs:
+				fmt.Printf("Signal: %v\n", s)
+				fmt.Printf("Pending: %v\n", atomic.LoadInt32(&pending))
+				fmt.Printf("Work channel length: %v", len(work))
+			case <-done:
+			}
+			signal.Stop(sigs)
+		}()
+	}
 
 	select {
 	case err := <-errs:

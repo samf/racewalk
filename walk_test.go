@@ -114,7 +114,7 @@ func TestWalk(t *testing.T) {
 	t.Run("happy path", func(t *testing.T) {
 		assert := assert.New(t)
 
-		err := Walk(dirname, func(path string,
+		err := Walk(dirname, nil, func(path string,
 			dirs, others []FileNode) ([]FileNode, error) {
 			return dirs, nil
 		})
@@ -125,7 +125,7 @@ func TestWalk(t *testing.T) {
 		errstr := "uh oh"
 		assert := assert.New(t)
 
-		err := Walk(dirname, func(path string,
+		err := Walk(dirname, nil, func(path string,
 			dirs, others []FileNode) ([]FileNode, error) {
 			return dirs, fmt.Errorf(errstr)
 		})
@@ -139,7 +139,7 @@ func TestWalk(t *testing.T) {
 		require := require.New(t)
 		data := make(map[string]FileNode)
 
-		err := Walk(dirname, func(path string,
+		err := Walk(dirname, nil, func(path string,
 			dirs, others []FileNode) ([]FileNode, error) {
 			strip := len(dirname) + 1
 			if len(path) <= strip {
