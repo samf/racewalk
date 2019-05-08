@@ -113,7 +113,13 @@ func walker(work chan *workItem, errs chan<- error, done chan struct{},
 					errs <- err
 					return
 				}
-				work <- wi
+				select {
+				case work <- wi:
+				default:
+					go func() {
+						work <- wi
+					}()
+				}
 				atomic.AddInt32(opt.pending, 1)
 			}
 
