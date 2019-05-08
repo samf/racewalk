@@ -71,6 +71,7 @@ func Walk(top string, opt *Options, handler WalkHandler) error {
 
 	select {
 	case err := <-errs:
+		close(done)
 		return err
 	case <-done:
 	}
@@ -115,6 +116,7 @@ func walker(work chan *workItem, errs chan<- error, done chan struct{},
 				}
 				select {
 				case work <- wi:
+				case <-done:
 				default:
 					go func() {
 						// wi is local to the for-loop above, so this should
