@@ -1,4 +1,4 @@
-module github.com/samf/racewalk
+module github.com/samf/racewalk/v2
 
 go 1.12
 
