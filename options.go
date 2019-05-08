@@ -63,9 +63,7 @@ func (opt Options) println(rest ...interface{}) {
 		return
 	}
 
-	rest = append([]interface{}{
-		"DEBUG:",
-	}, rest...)
+	rest = append([]interface{}{"DEBUG:"}, rest...)
 
 	fmt.Fprintln(os.Stderr, rest...)
 }
