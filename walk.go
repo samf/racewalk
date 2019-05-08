@@ -43,7 +43,7 @@ func Walk(top string, opt *Options, handler WalkHandler) error {
 	}
 
 	// we now have one workItem
-	pending = 1
+	*opt.pending = 1
 	work := make(chan *workItem, 1)
 	work <- first
 
@@ -51,7 +51,7 @@ func Walk(top string, opt *Options, handler WalkHandler) error {
 	done := make(chan struct{})
 
 	for i := 0; i < opt.NumWorkers; i++ {
-		go walker(work, errs, done, handler, &pending)
+		go walker(work, errs, done, handler, opt)
 	}
 
 	if opt.Debug {
@@ -83,16 +83,22 @@ func Walk(top string, opt *Options, handler WalkHandler) error {
 }
 
 func walker(work chan *workItem, errs chan<- error, done chan struct{},
-	handler WalkHandler, pending *int32) {
+	handler WalkHandler, opt *Options) {
 	for {
 		select {
 		case wi := <-work:
 			if wi == nil {
+				if opt.Debug {
+					fmt.Println("DEBUG: skipped a nil workItem")
+				}
 				continue
 			}
 
 			dirs, err := handler(wi.top, wi.dirs, wi.others)
 			if err != nil {
+				if opt.Debug {
+					fmt.Printf("DEBUG: sending error from handler: %v", err)
+				}
 				errs <- err
 				return
 			}
@@ -101,18 +107,27 @@ func walker(work chan *workItem, errs chan<- error, done chan struct{},
 				dirpath := filepath.Join(wi.top, dir.Name())
 				wi, err := dirToWorkItem(dirpath)
 				if err != nil {
+					if opt.Debug {
+						fmt.Printf("DEBUG: sending error from dwi: %v", err)
+					}
 					errs <- err
 					return
 				}
 				work <- wi
-				atomic.AddInt32(pending, 1)
+				atomic.AddInt32(opt.pending, 1)
 			}
 
-			if atomic.AddInt32(pending, -1) == 0 {
+			if atomic.AddInt32(opt.pending, -1) == 0 {
+				if opt.Debug {
+					fmt.Println("DEBUG: goal reached")
+				}
 				close(done)
 				return
 			}
 		case <-done:
+			if opt.Debug {
+				fmt.Println("DEBUG: got a 'done' notice")
+			}
 			return
 		}
 	}

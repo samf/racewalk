@@ -17,18 +17,22 @@ var (
 type Options struct {
 	NumWorkers int
 	Debug      bool
+
+	pending *int32
 }
 
-func (o *Options) valid() error {
+func (opt *Options) valid() error {
 	switch {
-	case o.NumWorkers < 0:
-		return fmt.Errorf("Invalid number of workers: %v", o.NumWorkers)
-	case o.NumWorkers > maxWorkers:
+	case opt.NumWorkers < 0:
+		return fmt.Errorf("Invalid number of workers: %v", opt.NumWorkers)
+	case opt.NumWorkers > maxWorkers:
 		return fmt.Errorf("NumWorkers: %v > maximum %v (2 * number of CPUs)",
-			o.NumWorkers, maxWorkers)
-	case o.NumWorkers == 0:
-		o.NumWorkers = maxWorkers / 2
+			opt.NumWorkers, maxWorkers)
+	case opt.NumWorkers == 0:
+		opt.NumWorkers = maxWorkers / 2
 	}
+
+	opt.pending = new(int32)
 
 	return nil
 }
