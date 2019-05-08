@@ -54,7 +54,7 @@ func Walk(top string, handler WalkHandler) error {
 		select {
 		case s := <-sigs:
 			fmt.Printf("Signal: %v\n", s)
-			fmt.Printf("Pending: %v\n", pending)
+			fmt.Printf("Pending: %v\n", atomic.LoadInt32(&pending))
 			fmt.Printf("Work channel length: %v", len(work))
 		case <-done:
 		}
