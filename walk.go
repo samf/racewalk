@@ -76,7 +76,7 @@ func Walk(top string, opt *Options, handler WalkHandler) error {
 	case <-done:
 	}
 
-	if len(work) > 1 {
+	if len(work) > 0 {
 		return fmt.Errorf("unfinished work remaining: %v items", len(work))
 	}
 
@@ -88,7 +88,6 @@ func walker(work chan *workItem, errs chan<- error, done chan struct{},
 	for {
 		select {
 		case wi := <-work:
-			leftovers := []*workItem{}
 			if wi == nil {
 				if opt.Debug {
 					fmt.Println("DEBUG: skipped a nil workItem")
@@ -105,6 +104,7 @@ func walker(work chan *workItem, errs chan<- error, done chan struct{},
 				return
 			}
 
+			leftovers := []*workItem{}
 			for _, dir := range dirs {
 				dirpath := filepath.Join(wi.top, dir.Name())
 				wi, err := dirToWorkItem(dirpath)
