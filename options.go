@@ -55,7 +55,7 @@ func (opt Options) printf(format string, rest ...interface{}) {
 		return
 	}
 
-	fmt.Fprintf(os.Stderr, "DEBUG: "+format, rest)
+	fmt.Fprintf(os.Stderr, "DEBUG: "+format, rest...)
 }
 
 func (opt Options) println(rest ...interface{}) {
@@ -63,5 +63,7 @@ func (opt Options) println(rest ...interface{}) {
 		return
 	}
 
-	fmt.Fprintln(os.Stderr, "DEBUG:", rest)
+	rest = append([]interface{}{"DEBUG:"}, rest...)
+
+	fmt.Fprintln(os.Stderr, rest...)
 }
