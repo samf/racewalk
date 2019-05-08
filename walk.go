@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"runtime"
 	"sync/atomic"
 )
 
@@ -63,6 +64,7 @@ func Walk(top string, opt *Options, handler WalkHandler) error {
 				fmt.Printf("Signal: %v\n", s)
 				fmt.Printf("Pending: %v\n", atomic.LoadInt32(&pending))
 				fmt.Printf("Work channel length: %v", len(work))
+				fmt.Printf("Goroutines remaining: %v", runtime.NumGoroutine())
 			case <-done:
 			}
 			signal.Stop(sigs)
