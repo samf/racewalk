@@ -26,8 +26,6 @@ type workItem struct {
 // Walk calls the 'handle' function for every directory under top. The handle
 // function may be called from a go routine.
 func Walk(top string, opt *Options, handler WalkHandler) error {
-	var pending int32
-
 	// check/initialize options
 	if opt == nil {
 		opt = new(Options)
@@ -44,7 +42,7 @@ func Walk(top string, opt *Options, handler WalkHandler) error {
 	}
 
 	// we now have one workItem
-	*opt.pending = 1
+	atomic.StoreInt32(opt.pending, 1)
 	work := make(chan *workItem, 1)
 	work <- first
 
@@ -62,7 +60,7 @@ func Walk(top string, opt *Options, handler WalkHandler) error {
 			select {
 			case s := <-sigs:
 				fmt.Printf("Signal: %v\n", s)
-				fmt.Printf("Pending: %v\n", atomic.LoadInt32(&pending))
+				fmt.Printf("Pending: %v\n", atomic.LoadInt32(opt.pending))
 				fmt.Printf("Work channel length: %v\n", len(work))
 				fmt.Printf("Goroutines remaining: %v\n", runtime.NumGoroutine())
 			case <-done:
