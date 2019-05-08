@@ -2,6 +2,7 @@ package racewalk
 
 import (
 	"fmt"
+	"os"
 	"runtime"
 )
 
@@ -47,4 +48,20 @@ func (opt *Options) valid() error {
 	opt.pending = new(int32)
 
 	return nil
+}
+
+func (opt Options) printf(format string, rest ...interface{}) {
+	if !opt.Debug {
+		return
+	}
+
+	fmt.Fprintf(os.Stderr, "DEBUG: "+format, rest)
+}
+
+func (opt Options) println(rest ...interface{}) {
+	if !opt.Debug {
+		return
+	}
+
+	fmt.Fprintln(os.Stderr, "DEBUG:", rest)
 }

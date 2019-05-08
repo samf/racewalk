@@ -59,10 +59,10 @@ func Walk(top string, opt *Options, handler WalkHandler) error {
 		go func() {
 			select {
 			case s := <-sigs:
-				fmt.Printf("Signal: %v\n", s)
-				fmt.Printf("Pending: %v\n", atomic.LoadInt32(opt.pending))
-				fmt.Printf("Work channel length: %v\n", len(work))
-				fmt.Printf("Goroutines remaining: %v\n", runtime.NumGoroutine())
+				opt.printf("Signal: %v\n", s)
+				opt.printf("Pending: %v\n", atomic.LoadInt32(opt.pending))
+				opt.printf("Work channel length: %v\n", len(work))
+				opt.printf("Goroutines remaining: %v\n", runtime.NumGoroutine())
 			case <-done:
 			}
 			signal.Stop(sigs)
@@ -89,17 +89,13 @@ func walker(work chan *workItem, errs chan<- error, done chan struct{},
 		select {
 		case wi := <-work:
 			if wi == nil {
-				if opt.Debug {
-					fmt.Fprintln(os.Stderr, "DEBUG: skipped a nil workItem")
-				}
+				opt.println(os.Stderr, "skipped a nil workItem")
 				continue
 			}
 
 			dirs, err := handler(wi.top, wi.dirs, wi.others)
 			if err != nil {
-				if opt.Debug {
-					fmt.Fprintf(os.Stderr, "DEBUG: sending error from handler: %v", err)
-				}
+				opt.printf("sending error from handler: %v", err)
 				errs <- err
 				return
 			}
@@ -109,9 +105,7 @@ func walker(work chan *workItem, errs chan<- error, done chan struct{},
 				dirpath := filepath.Join(wi.top, dir.Name())
 				wi, err := dirToWorkItem(dirpath)
 				if err != nil {
-					if opt.Debug {
-						fmt.Fprintf(os.Stderr, "DEBUG: sending error from dwi: %v", err)
-					}
+					opt.printf("sending error from dwi: %v", err)
 					errs <- err
 					return
 				}
@@ -136,16 +130,12 @@ func walker(work chan *workItem, errs chan<- error, done chan struct{},
 			}
 
 			if atomic.AddInt32(opt.pending, -1) == 0 {
-				if opt.Debug {
-					fmt.Fprintln(os.Stderr, "DEBUG: goal reached")
-				}
+				opt.println("goal reached")
 				close(done)
 				return
 			}
 		case <-done:
-			if opt.Debug {
-				fmt.Fprintln(os.Stderr, "DEBUG: got a 'done' notice")
-			}
+			opt.println("got a 'done' notice")
 			return
 		}
 	}
