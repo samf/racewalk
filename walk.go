@@ -3,6 +3,8 @@ package racewalk
 import (
 	"fmt"
 	"io/ioutil"
+	"os"
+	"os/signal"
 	"path/filepath"
 	"sync/atomic"
 )
@@ -37,16 +39,27 @@ func Walk(top string, handler WalkHandler) error {
 	// we now have one workItem
 	pending = 1
 	work := make(chan *workItem, 1)
-	defer close(work)
 	work <- first
 
 	errs := make(chan error)
-	defer close(errs)
 	done := make(chan struct{})
 
 	for i := 0; i < NumWorkers; i++ {
 		go walker(work, errs, done, handler, &pending)
 	}
+
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs)
+	go func() {
+		select {
+		case s := <-sigs:
+			fmt.Printf("Signal: %v\n", s)
+			fmt.Printf("Pending: %v\n", pending)
+			fmt.Printf("Work channel length: %v", len(work))
+		case <-done:
+		}
+		signal.Stop(sigs)
+	}()
 
 	select {
 	case err := <-errs:
