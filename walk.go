@@ -88,6 +88,7 @@ func walker(work chan *workItem, errs chan<- error, done chan struct{},
 	for {
 		select {
 		case wi := <-work:
+			leftovers := []*workItem{}
 			if wi == nil {
 				if opt.Debug {
 					fmt.Println("DEBUG: skipped a nil workItem")
@@ -116,15 +117,22 @@ func walker(work chan *workItem, errs chan<- error, done chan struct{},
 				}
 				select {
 				case work <- wi:
-				case <-done:
 				default:
-					go func() {
-						// wi is local to the for-loop above, so this should
-						// be free of races
-						work <- wi
-					}()
+					leftovers = append(leftovers, wi)
 				}
 				atomic.AddInt32(opt.pending, 1)
+			}
+
+			if len(leftovers) > 0 {
+				go func() {
+					for _, wi := range leftovers {
+						select {
+						case work <- wi:
+						case <-done:
+							break
+						}
+					}
+				}()
 			}
 
 			if atomic.AddInt32(opt.pending, -1) == 0 {
