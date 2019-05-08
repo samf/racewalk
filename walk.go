@@ -117,6 +117,8 @@ func walker(work chan *workItem, errs chan<- error, done chan struct{},
 				case work <- wi:
 				default:
 					go func() {
+						// wi is local to the for-loop above, so this should
+						// be free of races
 						work <- wi
 					}()
 				}
