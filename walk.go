@@ -90,7 +90,7 @@ func walker(work chan *workItem, errs chan<- error, done chan struct{},
 		case wi := <-work:
 			if wi == nil {
 				if opt.Debug {
-					fmt.Println("DEBUG: skipped a nil workItem")
+					fmt.Fprintln(os.Stderr, "DEBUG: skipped a nil workItem")
 				}
 				continue
 			}
@@ -98,7 +98,7 @@ func walker(work chan *workItem, errs chan<- error, done chan struct{},
 			dirs, err := handler(wi.top, wi.dirs, wi.others)
 			if err != nil {
 				if opt.Debug {
-					fmt.Printf("DEBUG: sending error from handler: %v", err)
+					fmt.Fprintf(os.Stderr, "DEBUG: sending error from handler: %v", err)
 				}
 				errs <- err
 				return
@@ -110,7 +110,7 @@ func walker(work chan *workItem, errs chan<- error, done chan struct{},
 				wi, err := dirToWorkItem(dirpath)
 				if err != nil {
 					if opt.Debug {
-						fmt.Printf("DEBUG: sending error from dwi: %v", err)
+						fmt.Fprintf(os.Stderr, "DEBUG: sending error from dwi: %v", err)
 					}
 					errs <- err
 					return
@@ -137,14 +137,14 @@ func walker(work chan *workItem, errs chan<- error, done chan struct{},
 
 			if atomic.AddInt32(opt.pending, -1) == 0 {
 				if opt.Debug {
-					fmt.Println("DEBUG: goal reached")
+					fmt.Fprintln(os.Stderr, "DEBUG: goal reached")
 				}
 				close(done)
 				return
 			}
 		case <-done:
 			if opt.Debug {
-				fmt.Println("DEBUG: got a 'done' notice")
+				fmt.Fprintln(os.Stderr, "DEBUG: got a 'done' notice")
 			}
 			return
 		}
