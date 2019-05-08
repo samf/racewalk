@@ -43,7 +43,7 @@ func Walk(top string, opt *Options, handler WalkHandler) error {
 
 	// we now have one workItem
 	atomic.StoreInt32(opt.pending, 1)
-	work := make(chan *workItem, 1)
+	work := make(chan *workItem, opt.TaskBufferSize)
 	work <- first
 
 	errs := make(chan error)
