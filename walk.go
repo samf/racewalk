@@ -141,18 +141,18 @@ func walker(work chan *workItem, errs chan<- error, done chan struct{},
 	}
 }
 
-func dirToWorkItem(dir string) (*workItem, error) {
+func dirToWorkItem(dirpath string) (*workItem, error) {
 	workItem := &workItem{
-		top: dir,
+		top: dirpath,
 	}
 
-	finfos, err := ioutil.ReadDir(dir)
+	finfos, err := ioutil.ReadDir(dirpath)
 	if err != nil {
 		return nil, err
 	}
 
 	for _, finfo := range finfos {
-		fnode := complete(dir, finfo)
+		fnode := complete(dirpath, finfo)
 
 		if fnode.IsDir() {
 			workItem.dirs = append(workItem.dirs, *fnode)

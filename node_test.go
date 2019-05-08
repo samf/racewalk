@@ -21,7 +21,7 @@ func TestFileNode(t *testing.T) {
 
 		fnode := complete(dirpath, finfo)
 		assert.Equal("top", fnode.Name())
-		stat := fnode.Stat()
+		stat := fnode.GetStat()
 		assert.NotNil(stat)
 		assert.Equal(uint16(syscall.S_IFDIR), stat.Mode&syscall.S_IFMT)
 	})

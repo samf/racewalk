@@ -10,7 +10,8 @@ import (
 type FileNode struct {
 	os.FileInfo
 
-	statPath string
+	// StatPath is the path that was used to os.Lstat() the file
+	StatPath string
 }
 
 // complete takes a string and a FileInfo, and returns a FileNode. The string,
@@ -18,16 +19,18 @@ type FileNode struct {
 func complete(top string, finfo os.FileInfo) *FileNode {
 	fileNode := FileNode{
 		FileInfo: finfo,
-		statPath: filepath.Join(top, finfo.Name()),
+		StatPath: filepath.Join(top, finfo.Name()),
 	}
 	return &fileNode
 }
 
-func (fileNode FileNode) Stat() *syscall.Stat_t {
-	stat, ok := fileNode.FileInfo.Sys().(*syscall.Stat_t)
-	if !ok {
-		return nil
+// GetStat returns the *syscall.Stat_t buffer
+// If a unix Stat_t cannot be given, a nil is returned
+func (fileNode FileNode) GetStat() *syscall.Stat_t {
+	switch stat := fileNode.Sys().(type) {
+	case *syscall.Stat_t:
+		return stat
 	}
 
-	return stat
+	return nil
 }

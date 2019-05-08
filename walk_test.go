@@ -177,7 +177,7 @@ func TestWalk(t *testing.T) {
 			node, ok := data[linkinfo.name]
 			require.True(ok)
 			assert.Equal(uint16(syscall.S_IFLNK),
-				node.Stat().Mode&syscall.S_IFMT)
+				node.GetStat().Mode&syscall.S_IFMT)
 		}
 	})
 }
