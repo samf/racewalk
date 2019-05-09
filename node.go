@@ -14,6 +14,17 @@ type FileNode struct {
 	StatPath string
 }
 
+// MakeFileNode takes a path to a file and returns a FileNode. It is mostly
+// used for clients of racewalk to simplify testing.
+func MakeFileNode(path string) (*FileNode, error) {
+	finfo, err := os.Stat(path)
+	if err != nil {
+		return nil, err
+	}
+
+	return complete(path, finfo), nil
+}
+
 // complete takes a string and a FileInfo, and returns a FileNode. The string,
 // 'top', is a path to the directory containing the FileInfo.
 func complete(top string, finfo os.FileInfo) *FileNode {

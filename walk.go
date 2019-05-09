@@ -146,14 +146,14 @@ func walker(work chan *workItem, errs chan<- error, done chan struct{},
 }
 
 func dirToWorkItem(dirpath string) (*workItem, error) {
-	dirinfo, err := os.Lstat(dirpath)
+	dirnode, err := MakeFileNode(dirpath)
 	if err != nil {
 		return nil, err
 	}
 
 	workItem := &workItem{
 		top:     dirpath,
-		entries: []FileNode{*complete(filepath.Dir(dirpath), dirinfo)},
+		entries: []FileNode{*dirnode},
 	}
 
 	finfos, err := ioutil.ReadDir(dirpath)

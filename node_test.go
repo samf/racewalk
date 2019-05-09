@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestFileNode(t *testing.T) {
@@ -16,13 +17,23 @@ func TestFileNode(t *testing.T) {
 	t.Run("happy path", func(t *testing.T) {
 		assert := assert.New(t)
 
-		finfo, err := os.Lstat(filepath.Join(dirpath, "top"))
+		fnode, err := MakeFileNode(dirpath)
 		assert.NoError(err)
-
-		fnode := complete(dirpath, finfo)
-		assert.Equal("top", fnode.Name())
+		assert.Equal(dirpath, fnode.Name())
 		stat := fnode.GetStat()
 		assert.NotNil(stat)
 		assert.Equal(uint16(syscall.S_IFDIR), stat.Mode&syscall.S_IFMT)
+	})
+	t.Run("MakeFileNode", func(t *testing.T) {
+		assert := assert.New(t)
+		require := require.New(t)
+
+		dirchild := filepath.Join(dirpath, "little-dir")
+		err := os.Mkdir(dirchild, 0777)
+		require.NoError(err)
+
+		fileNode, err := MakeFileNode(dirchild)
+		assert.NoError(err)
+		assert.True(fileNode.IsDir())
 	})
 }
