@@ -5,6 +5,9 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
+	"sync"
+	"sync/atomic"
 	"syscall"
 	"testing"
 	"time"
@@ -121,6 +124,38 @@ func TestWalk(t *testing.T) {
 		assert.NoError(err)
 	})
 
+	t.Run("get everything", func(t *testing.T) {
+		var visited int32
+		assert := assert.New(t)
+
+		// add one for dirname itself
+		created := int32(1 + len(dirnodes) + len(regnodes) + len(symlinks))
+
+		err := Walk(dirname, nil, func(path string,
+			subdirs, entries []FileNode) ([]FileNode, error) {
+			atomic.AddInt32(&visited, int32(len(entries)))
+
+			return subdirs, nil
+		})
+
+		assert.NoError(err)
+		assert.Equal(created, visited)
+	})
+
+	t.Run("get only the top dir", func(t *testing.T) {
+		var count int32
+		assert := assert.New(t)
+
+		err := Walk(dirname, nil, func(path string,
+			subdirs, entries []FileNode) ([]FileNode, error) {
+			atomic.AddInt32(&count, int32(len(entries)))
+			return []FileNode{}, nil
+		})
+
+		assert.NoError(err)
+		assert.Equal(int32(1), count)
+	})
+
 	t.Run("handler errs", func(t *testing.T) {
 		errstr := "uh oh"
 		assert := assert.New(t)
@@ -135,46 +170,50 @@ func TestWalk(t *testing.T) {
 	})
 
 	t.Run("good data", func(t *testing.T) {
+		var data sync.Map
 		assert := assert.New(t)
 		require := require.New(t)
-		data := make(map[string]FileNode)
 
 		err := Walk(dirname, nil, func(path string,
-			dirs, others []FileNode) ([]FileNode, error) {
-			strip := len(dirname) + 1
-			if len(path) <= strip {
-				path = "."
-			} else {
-				path = path[strip:]
-			}
-			for _, dir := range dirs {
-				key := filepath.Join(path, dir.Name())
-				data[key] = dir
-			}
-			for _, thing := range others {
-				key := filepath.Join(path, thing.Name())
-				data[key] = thing
+			subdirs, entries []FileNode) ([]FileNode, error) {
+			for _, thing := range entries {
+				key := path
+				if !thing.IsDir() {
+					key = filepath.Join(path, thing.Name())
+				}
+				slash := strings.IndexRune(key, '/')
+				if slash != -1 {
+					key = key[slash+1:]
+				}
+				_, ok := data.LoadOrStore(key, thing)
+				assert.False(ok)
 			}
 
-			return dirs, nil
+			return subdirs, nil
 		})
 
 		assert.NoError(err)
 		for _, dinfo := range dirnodes {
-			node, ok := data[dinfo]
+			inode, ok := data.Load(dinfo)
+			require.True(ok, dinfo)
+			node, ok := inode.(FileNode)
 			require.True(ok, dinfo)
 			assert.True(node.IsDir())
 		}
 
 		for _, finfo := range regnodes {
-			node, ok := data[finfo.name]
+			inode, ok := data.Load(finfo.name)
+			require.True(ok)
+			node, ok := inode.(FileNode)
 			require.True(ok)
 			assert.False(node.IsDir())
 			assert.Equal(finfo.size, node.FileInfo.Size())
 		}
 
 		for _, linkinfo := range symlinks {
-			node, ok := data[linkinfo.name]
+			inode, ok := data.Load(linkinfo.name)
+			require.True(ok)
+			node, ok := inode.(FileNode)
 			require.True(ok)
 			assert.Equal(uint16(syscall.S_IFLNK),
 				node.GetStat().Mode&syscall.S_IFMT)

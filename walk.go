@@ -11,16 +11,20 @@ import (
 )
 
 // WalkHandler is a function that is called for every directory visited by Walk.
-// It receives a slice of dirs and others, and returns a slice of dirs. The
-// returned slice of dirs may be the same as was passed in, or it may remove
+//
+// It receives a slice of subdirs and entries, and returns a slice of dirs. The
+// returned slice of subdirs may be the same as was passed in, or it may remove
 // elements from the original, signifying that we will skip that directory.
-type WalkHandler func(root string, dirs []FileNode,
-	others []FileNode) ([]FileNode, error)
+//
+// The 'entries' argument will contain the directory corresponding to 'root'
+// first, followed by other non-directory entries.
+type WalkHandler func(root string, subdirs []FileNode,
+	entries []FileNode) ([]FileNode, error)
 
 type workItem struct {
-	top    string
-	dirs   []FileNode
-	others []FileNode
+	top     string
+	subdirs []FileNode
+	entries []FileNode
 }
 
 // Walk calls the 'handle' function for every directory under top. The handle
@@ -93,7 +97,7 @@ func walker(work chan *workItem, errs chan<- error, done chan struct{},
 				continue
 			}
 
-			dirs, err := handler(wi.top, wi.dirs, wi.others)
+			dirs, err := handler(wi.top, wi.subdirs, wi.entries)
 			if err != nil {
 				opt.printf("sending error from handler: %v", err)
 				errs <- err
@@ -142,8 +146,14 @@ func walker(work chan *workItem, errs chan<- error, done chan struct{},
 }
 
 func dirToWorkItem(dirpath string) (*workItem, error) {
+	dirinfo, err := os.Lstat(dirpath)
+	if err != nil {
+		return nil, err
+	}
+
 	workItem := &workItem{
-		top: dirpath,
+		top:     dirpath,
+		entries: []FileNode{*complete(filepath.Dir(dirpath), dirinfo)},
 	}
 
 	finfos, err := ioutil.ReadDir(dirpath)
@@ -155,9 +165,9 @@ func dirToWorkItem(dirpath string) (*workItem, error) {
 		fnode := complete(dirpath, finfo)
 
 		if fnode.IsDir() {
-			workItem.dirs = append(workItem.dirs, *fnode)
+			workItem.subdirs = append(workItem.subdirs, *fnode)
 		} else {
-			workItem.others = append(workItem.others, *fnode)
+			workItem.entries = append(workItem.entries, *fnode)
 		}
 	}
 
