@@ -115,6 +115,8 @@ func walker(work chan *workItem, errs chan<- error, done chan struct{},
 				}
 				select {
 				case work <- wi:
+				case <-done:
+					return
 				default:
 					leftovers = append(leftovers, wi)
 				}
