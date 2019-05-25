@@ -22,7 +22,11 @@ func MakeFileNode(path string) (*FileNode, error) {
 		return nil, err
 	}
 
-	return complete(path, finfo), nil
+	fnode := complete(path, finfo)
+	// complete will have set the wrong StatPath
+	fnode.StatPath = path
+
+	return fnode, nil
 }
 
 // complete takes a string and a FileInfo, and returns a FileNode. The string,
