@@ -109,9 +109,14 @@ func walker(work chan *workItem, errs chan<- error, done chan struct{},
 				dirpath := filepath.Join(wi.top, dir.Name())
 				wi, err := dirToWorkItem(dirpath)
 				if err != nil {
-					opt.printf("sending error from dwi: %v", err)
-					errs <- err
-					return
+					opt.printf("dirToWorkItem error: %v", err)
+					err = opt.ErrHandler(dirpath, err)
+					opt.printf("opt.ErrHandler returns %v", err)
+					if err != nil {
+						errs <- err
+						return
+					}
+					continue
 				}
 				select {
 				case work <- wi:

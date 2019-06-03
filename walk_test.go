@@ -23,6 +23,10 @@ var (
 		"top/non-empty",
 		"top/non-empty/bottom",
 	}
+	unreadable = []string{
+		"top/unreadable",
+		"top/non-empty/unreadable",
+	}
 	regnodes = []struct {
 		name string
 		size int64
@@ -103,6 +107,51 @@ func setup() string {
 	return dirname
 }
 
+func setupUnreadable(dirname string) {
+	err := os.Chdir(dirname)
+	if err != nil {
+		panic(err)
+	}
+
+	for _, darkDir := range unreadable {
+		err := os.Mkdir(darkDir, 0000)
+		if err != nil {
+			panic(err)
+		}
+	}
+
+	err = os.Chdir("..")
+	if err != nil {
+		panic(err)
+	}
+}
+
+func cleanupUnreadable(dirname string) {
+	err := os.Chdir(dirname)
+	if err != nil {
+		panic(err)
+	}
+
+	for _, dark := range unreadable {
+		err := os.Chmod(dark, 0777)
+		if err != nil {
+			panic(err)
+		}
+	}
+
+	for _, dark := range unreadable {
+		err := os.Remove(dark)
+		if err != nil {
+			panic(err)
+		}
+	}
+
+	err = os.Chdir("..")
+	if err != nil {
+		panic(err)
+	}
+}
+
 func cleanup(dirname string) {
 	err := os.RemoveAll(dirname)
 	if err != nil {
@@ -167,6 +216,28 @@ func TestWalk(t *testing.T) {
 
 		assert.Error(err)
 		assert.Equal(err.Error(), errstr)
+	})
+
+	t.Run("error handler", func(t *testing.T) {
+		var count int
+
+		assert := assert.New(t)
+
+		setupUnreadable(dirname)
+		defer cleanupUnreadable(dirname)
+
+		opt := &Options{
+			ErrHandler: func(path string, err error) error {
+				count++
+				return nil
+			},
+		}
+		err := Walk(dirname, opt, func(path string,
+			dirs, others []FileNode) ([]FileNode, error) {
+			return dirs, nil
+		})
+		assert.NoError(err)
+		assert.Equal(2, count)
 	})
 
 	t.Run("good data", func(t *testing.T) {
